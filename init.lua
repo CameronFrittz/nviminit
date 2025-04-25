@@ -24,10 +24,12 @@ require('packer').startup(function(use)
       ts_update()
     end
   }
+  use 'nvim-treesitter/nvim-treesitter-context'
 
   -- UI
   use 'nvim-lualine/lualine.nvim'
   use 'nvim-tree/nvim-tree.lua'
+  use 'folke/tokyonight.nvim'
 
   -- Telescope
   use { 'nvim-telescope/telescope.nvim' }
@@ -35,13 +37,24 @@ require('packer').startup(function(use)
 
   -- Copilot
   use 'github/copilot.vim'
+
+  -- Extras
+  use 'folke/trouble.nvim'
+  use 'j-hui/fidget.nvim'
+  use 'ray-x/lsp_signature.nvim'
 end)
 
--- === TELESCOPE SETUP (FIX) ===
+-- === TELESCOPE SETUP ===
 local ok, telescope = pcall(require, "telescope")
 if ok then
   telescope.setup {
     defaults = {
+      file_ignore_patterns = {
+        "%.uid$",
+        "%.godot$",
+        "^%.git/",
+        "^%.godot/",
+      },
       mappings = {
         i = {
           ["<esc>"] = require("telescope.actions").close,
@@ -60,6 +73,7 @@ vim.opt.expandtab = true
 vim.opt.clipboard = 'unnamedplus'
 vim.cmd [[syntax on]]
 vim.cmd [[filetype plugin indent on]]
+vim.cmd [[colorscheme tokyonight]]
 
 -- === KEYBINDINGS ===
 vim.keymap.set('n', '<leader>ff', '<cmd>Telescope find_files<CR>')
@@ -102,7 +116,6 @@ require("mason-lspconfig").setup_handlers {
         vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { buffer = bufnr })
         vim.keymap.set("n", "<leader>f", function() vim.lsp.buf.format { async = true } end, { buffer = bufnr })
 
-        -- 🧼 Format on save
         vim.api.nvim_create_autocmd("BufWritePre", {
           buffer = bufnr,
           callback = function()
@@ -110,13 +123,15 @@ require("mason-lspconfig").setup_handlers {
           end,
         })
 
-        -- 🧼 Format on open
         vim.api.nvim_create_autocmd("BufReadPost", {
           buffer = bufnr,
           callback = function()
             vim.lsp.buf.format({ async = false })
           end,
         })
+
+        require("fidget").setup {}
+        require("lsp_signature").on_attach({}, bufnr)
       end
     }
   end
@@ -146,7 +161,7 @@ cmp.setup {
 local treesitter_ok, configs = pcall(require, "nvim-treesitter.configs")
 if treesitter_ok then
   configs.setup {
-    ensure_installed = { "c_sharp", "lua", "vim" },
+    ensure_installed = { "c_sharp", "gdscript", "lua", "vim", "json", "ini" },
     highlight = {
       enable = true,
       disable = function(lang, buf)
@@ -156,6 +171,9 @@ if treesitter_ok then
         end
         return false
       end
+    },
+    context_commentstring = {
+      enable = true
     }
   }
 end

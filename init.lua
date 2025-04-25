@@ -35,8 +35,43 @@ require('packer').startup(function(use)
   use { 'nvim-telescope/telescope.nvim' }
   use 'nvim-lua/plenary.nvim'
 
-  -- Copilot
+  -- Copilot (Completions)
   use 'github/copilot.vim'
+
+  -- Copilot Chat (Sidebar)
+  use({
+    "CopilotC-Nvim/CopilotChat.nvim",
+    branch = "main",
+    requires = {
+      { "github/copilot.vim" },
+      { "nvim-lua/plenary.nvim" },
+    },
+    config = function()
+      require("CopilotChat").setup({
+        debug = false,
+        window = {
+          layout = 'vertical',        -- use a vertical split (sidebar)
+          width = 0.3,                -- 30% of editor width
+          height = 0.9,               -- 90% of editor height
+        },
+        show_floating_preview = false,
+        prompts = {
+          Explain = "Explain how this code works:",
+          Review = "Review this code:",
+          Refactor = "Refactor this code to improve clarity:",
+          Tests = "Suggest tests for this code:",
+          Docs = "Generate documentation for this code:",
+        },
+        mappings = {
+          accept = "<CR>",
+          yank = "y",
+          scroll_down = "<C-d>",
+          scroll_up = "<C-u>",
+          close = "q",
+        },
+      })
+    end
+  })
 
   -- Extras
   use 'folke/trouble.nvim'
@@ -53,7 +88,8 @@ if ok then
         "%.uid$",
         "%.godot$",
         "^%.git/",
-        "^%.godot/",
+        "^%.vs/",
+        "^bin/",
       },
       mappings = {
         i = {
@@ -63,6 +99,7 @@ if ok then
     }
   }
 end
+
 
 -- === GENERAL OPTIONS ===
 vim.opt.number = true
@@ -78,6 +115,8 @@ vim.cmd [[colorscheme tokyonight]]
 -- === KEYBINDINGS ===
 vim.keymap.set('n', '<leader>ff', '<cmd>Telescope find_files<CR>')
 vim.keymap.set('n', '<leader>fg', '<cmd>Telescope live_grep<CR>')
+vim.keymap.set('n', '<leader>cc', '<cmd>lua require("CopilotChat").toggle()<CR>')
+vim.keymap.set('v', '<leader>ce', '<cmd>lua require("CopilotChat").ask("Explain")<CR>')
 
 -- === LSP + MASON SETUP ===
 require("mason").setup()
@@ -107,6 +146,31 @@ require("mason-lspconfig").setup_handlers {
       organize_imports_on_format = true,
       enable_import_completion = true,
       capabilities = capabilities,
+      settings = {
+        FormattingOptions = {
+          enableEditorConfigSupport = true,
+          OrganizeImports = true,
+          enableMsBuildEditorConfigSupport = true,
+          NewLine = "\n",
+          UseTabs = false,
+          TabSize = 4,
+          IndentationSize = 4,
+          EnableCommentFormatting = false,
+        },
+        RoslynExtensionsOptions = {
+          enableAnalyzersSupport = true,
+          enableImportCompletion = true,
+          locationPaths = {},
+          organizeImportsOnFormat = true,
+          analyzeOpenDocumentsOnly = true,
+          rules = {
+            ["RCS1181"] = "none"
+          }
+        },
+        RoslynAnalyzersOptions = {
+          documentAnalysisScope = "openFiles"
+        }
+      },
       on_attach = function(client, bufnr)
         print("✅ OmniSharp attached")
         vim.keymap.set("n", "K", vim.lsp.buf.hover, { buffer = bufnr })
@@ -161,7 +225,7 @@ cmp.setup {
 local treesitter_ok, configs = pcall(require, "nvim-treesitter.configs")
 if treesitter_ok then
   configs.setup {
-    ensure_installed = { "c_sharp", "gdscript", "lua", "vim", "json", "ini" },
+    ensure_installed = { "c_sharp", "html", "javascript", "css", "lua", "vim", "json", "ini", "gdscript" },
     highlight = {
       enable = true,
       disable = function(lang, buf)
@@ -181,3 +245,39 @@ end
 -- === GITHUB COPILOT ===
 vim.g.copilot_no_tab_map = true
 vim.api.nvim_set_keymap("i", "<C-J>", "copilot#Accept(\"<CR>\")", { expr = true, silent = true, script = true })
+vim.api.nvim_set_keymap("i", "<A-]>", "copilot#Next()", { expr = true, silent = true })
+vim.api.nvim_set_keymap("i", "<A-[>", "copilot#Previous()", { expr = true, silent = true })
+vim.api.nvim_set_keymap("i", "<C-]>", "copilot#Dismiss()", { expr = true, silent = true })
+
+vim.filetype.add({
+  extension = {
+    razor = "html"
+  }
+})
+
+
+-- === NVIM-TREE SETUP ===
+require("nvim-tree").setup({
+  sort_by = "case_sensitive",
+  view = {
+    width = 30,
+    side = "left",
+    preserve_window_proportions = true,
+  },
+  renderer = {
+    group_empty = true,
+  },
+  filters = {
+    dotfiles = false,
+    custom = { "^.git$", "^bin$", "^obj$", "^.vs$" },
+  },
+  git = {
+    enable = true,
+    ignore = false,
+  },
+})
+
+
+vim.keymap.set('n', '<leader>e', ':NvimTreeToggle<CR>', { desc = "Toggle File Explorer" })
+
+
